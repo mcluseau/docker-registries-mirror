@@ -47,34 +47,36 @@ func cacheCleaner() {
 			return nil
 		})
 
-		if size > cacheSize {
-			// sort by atime (then size and path)
-			sort.Slice(infos, func(i, j int) bool {
-				a, b := infos[i], infos[j]
+		if size < cacheSize {
+			continue
+		}
 
-				if !a.atime.Equal(b.atime) {
-					return a.atime.Before(b.atime) // older first
-				}
+		// sort by atime (then size and path)
+		sort.Slice(infos, func(i, j int) bool {
+			a, b := infos[i], infos[j]
 
-				if a.size != b.size {
-					return b.size < a.size // bigger first
-				}
+			if !a.atime.Equal(b.atime) {
+				return a.atime.Before(b.atime) // older first
+			}
 
-				return a.path < b.path
-			})
+			if a.size != b.size {
+				return b.size < a.size // bigger first
+			}
 
-			for _, info := range infos {
-				log.Print("clearing cache entry ", info.path)
-				if err := os.Remove(info.path); err != nil {
-					log.Print("failed to remove ", info.path, ": ", err)
-					continue
-				}
+			return a.path < b.path
+		})
 
-				size -= info.size
+		for _, info := range infos {
+			log.Print("clearing cache entry ", info.path)
+			if err := os.Remove(info.path); err != nil {
+				log.Print("failed to remove ", info.path, ": ", err)
+				continue
+			}
 
-				if size <= cacheSize {
-					break
-				}
+			size -= info.size
+
+			if size < cacheSize {
+				break
 			}
 		}
 	}
