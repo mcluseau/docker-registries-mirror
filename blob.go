@@ -1,7 +1,10 @@
 package main
 
 import (
+	"crypto/md5"
+	"crypto/sha1"
 	"crypto/sha256"
+	"crypto/sha512"
 	"encoding/hex"
 	"hash"
 	"io"
@@ -14,6 +17,9 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/cespare/xxhash"
+	"github.com/twmb/murmur3"
 )
 
 var (
@@ -188,8 +194,25 @@ func fetchBlob(out *os.File, resp *http.Response, state *blobState) (ok bool) {
 	}
 
 	switch alg {
+	case "sha1":
+		h = sha1.New()
 	case "sha256":
 		h = sha256.New()
+	case "sha512":
+		h = sha512.New()
+
+	case "md5":
+		h = md5.New()
+
+	case "xx":
+		h = xxhash.New()
+
+	case "murmur32":
+		h = murmur3.New32()
+	case "murmur64":
+		h = murmur3.New64()
+	case "murmur128":
+		h = murmur3.New128()
 
 	default:
 		log.Print("warning: unknown hash algorithm, will not check download: ", alg)
