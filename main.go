@@ -36,7 +36,11 @@ func main() {
 	}
 
 	log.Print("listening on ", *bind)
-	http.ListenAndServe(*bind, handler{})
+
+	err := http.ListenAndServe(*bind, handler{})
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 type handler struct{}
