@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -48,6 +49,13 @@ type handler struct{}
 func (_ handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	log := log.New(os.Stderr, req.RemoteAddr+": ", log.Flags())
 
+	if req.Method == http.MethodGet && strings.HasPrefix(req.URL.Path, "/blobs/") {
+		blob := path.Base(req.URL.Path)
+
+		serveBlob(w, req, blob, true)
+		return
+	}
+
 	u := req.URL
 
 	path := u.Path
@@ -88,7 +96,7 @@ func (_ handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		if m := blobRE.FindStringSubmatch(path); m != nil {
 			blob := m[1]
 			log.Print("serving blob ", blob)
-			serveBlob(w, req, blob)
+			serveBlob(w, req, blob, false)
 			return
 		}
 	}

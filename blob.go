@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/hex"
+	"flag"
 	"hash"
 	"io"
 	"log"
@@ -23,6 +24,8 @@ import (
 )
 
 var (
+	peers = flag.String("peers", "", "peers to ask for missing blobs")
+
 	blobLock   = &sync.Mutex{}
 	blobStates = map[string]*blobState{}
 )
@@ -45,8 +48,8 @@ func blobPath(digest string) string {
 	return filepath.Join(*cacheDir, "blobs", digest)
 }
 
-func serveBlob(w http.ResponseWriter, req *http.Request, blob string) {
-	state := getState(blob, req)
+func serveBlob(w http.ResponseWriter, req *http.Request, blob string, failIfMissing bool) {
+	state := getState(blob, req, failIfMissing)
 
 	if state.code != 200 {
 		http.Error(w, http.StatusText(state.code), state.code)
@@ -70,7 +73,7 @@ func serveBlob(w http.ResponseWriter, req *http.Request, blob string) {
 	io.Copy(w, in)
 }
 
-func getState(blob string, req *http.Request) (state *blobState) {
+func getState(blob string, req *http.Request, failIfMissing bool) (state *blobState) {
 	blobLock.Lock()
 	defer blobLock.Unlock()
 
@@ -104,6 +107,11 @@ func getState(blob string, req *http.Request) (state *blobState) {
 		return
 	}
 
+	if failIfMissing {
+		state.code = http.StatusNotFound
+		return
+	}
+
 	blobStates[blob] = state
 
 	defer func() {
@@ -127,23 +135,43 @@ func getState(blob string, req *http.Request) (state *blobState) {
 		}
 	}()
 
-	log.Print("fetching blob ", state.digest, " from ", req.URL)
+	var resp *http.Response
+	if *peers != "" {
+		for _, peer := range strings.Split(*peers, ",") {
+			resp, err = http.Get(peer + "/blobs/" + blob)
+			if err != nil {
+				log.Print("warning: peer ", peer, " failed: ", err)
+				continue
+			}
 
-	proxyReq, err := http.NewRequest("GET", req.URL.String(), nil)
-	if err != nil {
-		log.Fatal("bad new request: ", req.URL)
+			if resp.StatusCode == 200 {
+				log.Print("found blob ", blob, " on peer ", peer)
+				break
+			}
+
+			resp = nil
+		}
 	}
 
-	// copy some headers
-	for _, hdr := range []string{"Accept", "Authorization"} {
-		proxyReq.Header.Set(hdr, req.Header.Get(hdr))
-	}
+	if resp == nil {
+		log.Print("fetching blob ", state.digest, " from ", req.URL)
 
-	resp, err := http.DefaultClient.Do(proxyReq)
-	if err != nil {
-		log.Print(" -> fetch failed: ", err)
-		state.code = http.StatusBadGateway
-		return
+		proxyReq, err := http.NewRequest("GET", req.URL.String(), nil)
+		if err != nil {
+			log.Fatal("bad new request: ", req.URL)
+		}
+
+		// copy some headers
+		for _, hdr := range []string{"Accept", "Authorization"} {
+			proxyReq.Header.Set(hdr, req.Header.Get(hdr))
+		}
+
+		resp, err = http.DefaultClient.Do(proxyReq)
+		if err != nil {
+			log.Print(" -> fetch failed: ", err)
+			state.code = http.StatusBadGateway
+			return
+		}
 	}
 
 	state.code = resp.StatusCode
