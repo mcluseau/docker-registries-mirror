@@ -1,13 +1,13 @@
 version = 2
-root = "/tmp/containerd-test"
-state = "/run/containerd"
+root = "/tmp/regmirror/containerd-root"
+state = "/tmp/regmirror/containerd-state"
 plugin_dir = ""
 disabled_plugins = []
 required_plugins = []
 oom_score = 0
 
 [grpc]
-  address = "/run/containerd/containerd.sock"
+  address = "/tmp/regmirror/containerd.sock"
   tcp_address = ""
   tcp_tls_cert = ""
   tcp_tls_key = ""
@@ -92,7 +92,6 @@ oom_score = 0
       [plugins."io.containerd.grpc.v1.cri".registry.mirrors]
         [plugins."io.containerd.grpc.v1.cri".registry.mirrors."docker.io"]
           endpoint = ["http://127.0.0.1:8585/https/registry-1.docker.io/v2"]
-          #endpoint = ["https://registry-1.docker.io"]
         [plugins."io.containerd.grpc.v1.cri".registry.mirrors."k8s.gcr.io"]
           endpoint = ["http://127.0.0.1:8585/https/k8s.gcr.io/v2"]
     [plugins."io.containerd.grpc.v1.cri".x509_key_pair_streaming]

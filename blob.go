@@ -28,6 +28,13 @@ var (
 
 	blobLock   = &sync.Mutex{}
 	blobStates = map[string]*blobState{}
+
+	peerClient = http.Client{
+		Transport: &http.Transport{
+			IdleConnTimeout:       30 * time.Second,
+			ResponseHeaderTimeout: 5 * time.Second,
+		},
+	}
 )
 
 type blobState struct {
@@ -138,7 +145,7 @@ func getState(blob string, req *http.Request, failIfMissing bool) (state *blobSt
 	var resp *http.Response
 	if *peers != "" {
 		for _, peer := range strings.Split(*peers, ",") {
-			resp, err = http.Get(peer + "/blobs/" + blob)
+			resp, err = peerClient.Get(peer + "/blobs/" + blob)
 			if err != nil {
 				log.Print("warning: peer ", peer, " failed: ", err)
 				continue
