@@ -4,6 +4,10 @@ set -ex
 
 dir=/tmp/regmirror
 
+pull_images() {
+    crictl pull k8s.gcr.io/pause:3.1
+}
+
 # clear test dir
 rm -rf $dir
 mkdir -p $dir
@@ -19,8 +23,9 @@ start_dreg2() {
         mcluseau/docker-registries-mirror -addr 127.0.1.2:8585 -peers http://127.0.0.1:8585
 }
 
+# - start cache 1 with a failed cache 2
 start_dreg1
-#start_dreg2
+#start_dreg2 # uncomment to test with a working (empty) cache 2 instead
 
 # run containerd
 
@@ -37,7 +42,7 @@ runctrd() {
 >log_ctrd
 runctrd
 
-crictl pull k8s.gcr.io/pause:3.1
+pull_images
 
 tree $dir/cache?
 
@@ -60,7 +65,7 @@ start_dreg2
 
 runctrd
 
-crictl pull k8s.gcr.io/pause:3.1
+pull_images
 
 tree $dir/cache?
 
